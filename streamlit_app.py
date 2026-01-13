@@ -195,8 +195,6 @@ base = alt.Chart(df_long).mark_line(size=2).encode(
     title=f"Axial Length Growth Curves ({gender}) with Visits"
 )
 
-
-
 if not visits_current_gender.empty:
     visits_chart = alt.Chart(visits_current_gender).mark_point(size=120).encode(
         x=alt.X("Age:Q", title="Age at visit (years)"),
@@ -214,7 +212,6 @@ if not visits_current_gender.empty:
         ],
     )
 
-
     lines_chart = alt.Chart(visits_current_gender).mark_line().encode(
         x="Age:Q",
         y="AxialLength:Q",
@@ -222,10 +219,11 @@ if not visits_current_gender.empty:
         detail="Eye:N",
     )
 
-
-    chart = base + lines_chart + visits_chart
+    # Give growth curves and visits independent color scales
+    chart = (base + lines_chart + visits_chart).resolve_scale(color="independent")
 else:
     chart = base
+
 
 
 st.subheader("Growth curves with all visits")
