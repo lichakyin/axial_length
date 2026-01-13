@@ -135,11 +135,11 @@ visits_current_gender = st.session_state.visits[
 # -----------------------------
 # 5. SHOW STORED VISITS
 # -----------------------------
-#st.subheader(f"Stored visits for this patient ({gender})")
-#if visits_current_gender.empty:
-#    st.info("No visits added yet for this gender. Use the form in the sidebar to add visits.")
-#else:
-#    st.dataframe(visits_current_gender)
+st.subheader(f"Stored visits for this patient ({gender})")
+if visits_current_gender.empty:
+    st.info("No visits added yet for this gender. Use the form in the sidebar to add visits.")
+else:
+    st.dataframe(visits_current_gender)
 
 # -----------------------------
 # 6. PLOT GROWTH CURVE + VISITS
