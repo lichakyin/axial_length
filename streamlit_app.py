@@ -195,12 +195,36 @@ base = alt.Chart(df_long).mark_line(size=2).encode(
     title=f"Axial Length Growth Curves ({gender}) with Visits"
 )
 
+# -----------------------------
+# 6. PLOT GROWTH CURVE + VISITS
+# -----------------------------
+base = alt.Chart(df_long).mark_line(size=2).encode(
+    x=alt.X("Age:Q", title="Age (years)"),
+    y=alt.Y(
+        "AxialLength:Q",
+        title="Axial length (mm)",
+        scale=alt.Scale(domain=[21, 28])
+    ),
+    color=alt.Color(
+        "Percentile:N",
+        title="Percentile",
+        scale=alt.Scale(domain=percentile_order),  # force legend order
+    ),
+    tooltip=["Age", "Percentile", "AxialLength"]
+).properties(
+    width=800,
+    height=500,
+    title=f"Axial Length Growth Curves ({gender}) with Visits"
+)
+
 if not visits_current_gender.empty:
-    visits_chart = alt.Chart(visits_current_gender).mark_point(size=120).encode(
+    # One chart for visits: line + points
+    visits_chart = alt.Chart(visits_current_gender).mark_line(
+        point=alt.OverlayMarkDef(size=120)
+    ).encode(
         x=alt.X("Age:Q", title="Age at visit (years)"),
         y="AxialLength:Q",
         color=alt.Color("Eye:N", title="Eye (OD/OS)"),
-        shape=alt.Shape("Eye:N", title="Eye (OD/OS)"),
         tooltip=[
             "Gender",
             "DateOfBirth",
@@ -210,19 +234,14 @@ if not visits_current_gender.empty:
             "Age",
             "AxialLength",
         ],
-    )
-
-    lines_chart = alt.Chart(visits_current_gender).mark_line().encode(
-        x="Age:Q",
-        y="AxialLength:Q",
-        color="Eye:N",
         detail="Eye:N",
     )
 
-    # Give growth curves and visits independent color scales
-    chart = (base + lines_chart + visits_chart).resolve_scale(color="independent")
+    # Independent color scale for curves vs visits
+    chart = (base + visits_chart).resolve_scale(color="independent")
 else:
     chart = base
+
 
 
 
