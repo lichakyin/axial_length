@@ -4,15 +4,21 @@ import altair as alt
 from datetime import date
 
 
+
+
 st.set_page_config(page_title="Axial Length Growth Curve", layout="wide")
 st.title("Axial Length Growth Curve (Chinese Data)")
 st.write('Reference: He, X., Sankaridurg, P., Naduvilath, T., Wang, J., Xiong, S., Weng, R., ... & Xu, X. (2023). Normative data and percentile curves for axial length and axial length/corneal curvature in Chinese children and adolescents aged 4–18 years. British Journal of Ophthalmology, 107(2), 167-175.')
+
+
 
 
 # -----------------------------
 # 1. SIDEBAR: GENDER SELECTION
 # -----------------------------
 st.sidebar.header("Patient information")
+
+
 
 
 gender = st.sidebar.radio(
@@ -23,11 +29,15 @@ gender = st.sidebar.radio(
 )
 
 
+
+
 # Map gender to file name (change if your filenames differ)
 GENDER_FILES = {
     "Male":   "male.csv",
     "Female": "female.csv",
 }
+
+
 
 
 # -----------------------------
@@ -45,15 +55,22 @@ def load_growth_curve(gender: str):
     return df
 
 
+
+
 df = load_growth_curve(gender)
+
+
 
 
 #st.subheader(f"Raw Growth-Curve Data ({gender})")
 #st.dataframe(df)
 
 
+
+
 # Long format for plotting
 df_long = df.melt(id_vars="Age", var_name="Percentile", value_name="AxialLength")
+
 
 # Normalize percentiles so they are plain strings like "3","5","10",...
 df_long["Percentile"] = (
@@ -63,8 +80,12 @@ df_long["Percentile"] = (
     .str.strip()
 )
 
+
 # Define the exact order you want
 percentile_order = ["3", "5", "10", "25", "50", "75", "90", "95"]
+
+
+
 
 
 
@@ -72,6 +93,8 @@ percentile_order = ["3", "5", "10", "25", "50", "75", "90", "95"]
 # 3. SESSION STATE FOR VISITS
 # -----------------------------
 EXPECTED_COLUMNS = ["Gender", "DateOfBirth", "Visit", "VisitDate", "Age", "Eye", "AxialLength"]
+
+
 
 
 if "visits" not in st.session_state:
@@ -82,6 +105,8 @@ else:
             st.session_state.visits[col] = None
 
 
+
+
 # -----------------------------
 # 4. SIDEBAR FORM: MULTIPLE VISITS
 #    (NO GENDER FIELD HERE)
@@ -89,48 +114,57 @@ else:
 st.sidebar.header("Add visit")
 
 
+if "dob" not in st.session_state:
+    st.session_state.dob = date(2015, 1, 1)
+if "visit_date" not in st.session_state:
+    st.session_state.visit_date = date.today()
+
 with st.sidebar.form("visit_form", clear_on_submit=True):
     dob = st.date_input(
         "Date of birth",
-        value=date(2015, 1, 1),
+        value=st.session_state.dob,
         min_value=date(1990, 1, 1),
         max_value=date.today(),
+        key="dob_input",
         help="Used to calculate age at visit",
     )
 
+    # Validate visit_date: if it's before dob, reset to dob
+    if st.session_state.visit_date < dob:
+        st.session_state.visit_date = dob
 
-    visit_label = st.text_input("Visit label (e.g., baseline, 6M, 1Y)", value="baseline")
-
+    visit_label = st.text_input("Visit label (e.g., baseline, 6M, 1Y)", value="baseline", key="visit_label_input")
 
     visit_date = st.date_input(
         "Visit date",
-        value=date.today(),
+        value=st.session_state.visit_date,
         min_value=dob,
         max_value=date.today(),
+        key="visit_date_input",
         help="Age is calculated from DOB and visit date",
     )
-
 
     # Age in years
     age_days = (visit_date - dob).days
     age_years = round(age_days / 365.25, 2)
     st.markdown(f"**Calculated age:** {age_years:.2f} years")
 
-
     axial_right = st.number_input(
         "Right eye (OD) axial length (mm)",
-        min_value=18.0, max_value=30.0, step=0.01, value=23.5
+        min_value=18.0, max_value=30.0, step=0.01, value=23.5, key="axial_right_input"
     )
     axial_left = st.number_input(
         "Left eye (OS) axial length (mm)",
-        min_value=18.0, max_value=30.0, step=0.01, value=23.3
+        min_value=18.0, max_value=30.0, step=0.01, value=23.3, key="axial_left_input"
     )
-
 
     submitted = st.form_submit_button("Add visit")
 
-
     if submitted:
+        # Update session state so next time the form uses the last entered values
+        st.session_state.dob = dob
+        st.session_state.visit_date = visit_date
+
         new_rows = pd.DataFrame([
             {
                 "Gender": gender,
@@ -157,10 +191,16 @@ with st.sidebar.form("visit_form", clear_on_submit=True):
         )
 
 
+
+
+
+
 # Show only visits for the currently selected gender
 visits_current_gender = st.session_state.visits[
     st.session_state.visits["Gender"] == gender
 ].copy()
+
+
 
 
 # -----------------------------
@@ -171,6 +211,8 @@ if visits_current_gender.empty:
     st.info("No visits added yet for this gender. Use the form in the sidebar to add visits.")
 else:
     st.dataframe(visits_current_gender)
+
+
 
 
 # -----------------------------
@@ -195,6 +237,7 @@ base = alt.Chart(df_long).mark_line(size=2).encode(
     title=f"Axial Length Growth Curves ({gender}) with Visits"
 )
 
+
 # -----------------------------
 # 6. PLOT GROWTH CURVE + VISITS
 # -----------------------------
@@ -217,6 +260,7 @@ base = alt.Chart(df_long).mark_line(size=2).encode(
     title=f"Axial Length Growth Curves ({gender}) with Visits"
 )
 
+
 if not visits_current_gender.empty:
     # One chart for visits: line + points
     visits_chart = alt.Chart(visits_current_gender).mark_line(
@@ -237,6 +281,7 @@ if not visits_current_gender.empty:
         detail="Eye:N",
     )
 
+
     # Independent color scale for curves vs visits
     chart = (base + visits_chart).resolve_scale(color="independent")
 else:
@@ -245,8 +290,14 @@ else:
 
 
 
+
+
+
+
 st.subheader("Growth curves with all visits")
 st.altair_chart(chart, use_container_width=True)
+
+
 
 
 # -----------------------------
@@ -262,6 +313,8 @@ if not visits_current_gender.empty:
     approx_value = row[approx_percentile]
 
 
+
+
     st.markdown("### Approximate percentile (for last added eye)")
     st.write(
         f"Gender **{last['Gender']}**, DOB **{last['DateOfBirth']}**, "
@@ -270,6 +323,16 @@ if not visits_current_gender.empty:
         f"axial length **{last['AxialLength']:.2f} mm** ≈ **{approx_percentile}th percentile** "
         f"(curve value {approx_value:.2f} mm)."
     )
+
+
+
+
+
+
+
+
+
+
 
 
 
