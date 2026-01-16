@@ -29,8 +29,6 @@ gender = st.sidebar.radio(
 )
 
 
-
-
 # Map gender to file name (change if your filenames differ)
 GENDER_FILES = {
     "Male":   "male.csv",
@@ -54,19 +52,10 @@ def load_growth_curve(gender: str):
     df = df.dropna(subset=["Age"])
     return df
 
-
-
-
 df = load_growth_curve(gender)
-
-
-
 
 #st.subheader(f"Raw Growth-Curve Data ({gender})")
 #st.dataframe(df)
-
-
-
 
 # Long format for plotting
 df_long = df.melt(id_vars="Age", var_name="Percentile", value_name="AxialLength")
@@ -80,12 +69,8 @@ df_long["Percentile"] = (
     .str.strip()
 )
 
-
 # Define the exact order you want
 percentile_order = ["3", "5", "10", "25", "50", "75", "90", "95"]
-
-
-
 
 
 
@@ -96,15 +81,12 @@ EXPECTED_COLUMNS = ["Gender", "DateOfBirth", "Visit", "VisitDate", "Age", "Eye",
 
 
 
-
 if "visits" not in st.session_state:
     st.session_state.visits = pd.DataFrame(columns=EXPECTED_COLUMNS)
 else:
     for col in EXPECTED_COLUMNS:
         if col not in st.session_state.visits.columns:
             st.session_state.visits[col] = None
-
-
 
 
 # -----------------------------
@@ -192,9 +174,6 @@ with st.sidebar.form("visit_form", clear_on_submit=True):
 
 
 
-
-
-
 # Show only visits for the currently selected gender
 visits_current_gender = st.session_state.visits[
     st.session_state.visits["Gender"] == gender
@@ -211,31 +190,6 @@ if visits_current_gender.empty:
     st.info("No visits added yet for this gender. Use the form in the sidebar to add visits.")
 else:
     st.dataframe(visits_current_gender)
-
-
-
-
-# -----------------------------
-# 6. PLOT GROWTH CURVE + VISITS
-# -----------------------------
-base = alt.Chart(df_long).mark_line(size=2).encode(
-    x=alt.X("Age:Q", title="Age (years)"),
-    y=alt.Y(
-        "AxialLength:Q",
-        title="Axial length (mm)",
-        scale=alt.Scale(domain=[21, 28])
-    ),
-    color=alt.Color(
-        "Percentile:N",
-        title="Percentile",
-        scale=alt.Scale(domain=percentile_order),  # <- force legend order
-    ),
-    tooltip=["Age", "Percentile", "AxialLength"]
-).properties(
-    width=800,
-    height=500,
-    title=f"Axial Length Growth Curves ({gender}) with Visits"
-)
 
 
 # -----------------------------
@@ -288,53 +242,32 @@ else:
     chart = base
 
 
-
-
-
-
-
-
-st.subheader("Growth curves with all visits")
 st.altair_chart(chart, use_container_width=True)
-
-
 
 
 # -----------------------------
 # 7. APPROXIMATE PERCENTILE
 # -----------------------------
+# 7. APPROXIMATE PERCENTILE
+# -----------------------------
 if not visits_current_gender.empty:
-    last = visits_current_gender.iloc[-1]
-    nearest_age = df.iloc[(df["Age"] - last["Age"]).abs().argsort()[0]]["Age"]
-    row = df[df["Age"] == nearest_age].iloc[0]
-    percentile_cols = [c for c in df.columns if c != "Age"]
-    differences = {p: abs(row[p] - last["AxialLength"]) for p in percentile_cols}
-    approx_percentile = min(differences, key=differences.get)
-    approx_value = row[approx_percentile]
+    # Get the last visit for each eye (OD and OS)
+    for eye in ["OD", "OS"]:
+        eye_data = visits_current_gender[visits_current_gender["Eye"] == eye]
+        if not eye_data.empty:
+            last = eye_data.iloc[-1]
+            nearest_age = df.iloc[(df["Age"] - last["Age"]).abs().argsort()[0]]["Age"]
+            row = df[df["Age"] == nearest_age].iloc[0]
+            percentile_cols = [c for c in df.columns if c != "Age"]
+            differences = {p: abs(row[p] - last["AxialLength"]) for p in percentile_cols}
+            approx_percentile = min(differences, key=differences.get)
+            approx_value = row[approx_percentile]
 
-
-
-
-    st.markdown("### Approximate percentile (for last added eye)")
-    st.write(
-        f"Gender **{last['Gender']}**, DOB **{last['DateOfBirth']}**, "
-        f"visit **{last['Visit']}** on **{last['VisitDate']}**, eye **{last['Eye']}**: "
-        f"age **{last['Age']:.2f}** years (nearest table age {nearest_age:.0f}), "
-        f"axial length **{last['AxialLength']:.2f} mm** ≈ **{approx_percentile}th percentile** "
-        f"(curve value {approx_value:.2f} mm)."
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            st.markdown(f"### Approximate percentile (for last added {eye} eye)")
+            st.write(
+                f"Gender **{last['Gender']}**, DOB **{last['DateOfBirth']}**, "
+                f"visit **{last['Visit']}** on **{last['VisitDate']}**, eye **{last['Eye']}**: "
+                f"age **{last['Age']:.2f}** years (nearest table age {nearest_age:.0f}), "
+                f"axial length **{last['AxialLength']:.2f} mm** ≈ **{approx_percentile}th percentile** "
+                f"(curve value {approx_value:.2f} mm)."
+            )
